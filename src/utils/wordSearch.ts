@@ -71,8 +71,8 @@ function placeWord(grid: string[][], row: number, col: number, direction: string
     }
 
     grid[currentRow][currentCol] = word[i];
-    if (!wordMap[word]) wordMap[word] = [];
-    wordMap[word].push([currentRow, currentCol]);
+    if (!wordMap[word]) wordMap[word] = { idxs: [] };
+    wordMap[word]['idxs'].push([currentRow, currentCol]);
   }
 }
 
