@@ -5,6 +5,7 @@ import { createWordSearch } from './wordSearch';
 import { JSONParams } from './types/jsonParams';
 import { ProjectFactory } from '@gmetrixr/rjson/lib/cjs/r/recordFactories';
 
+// --------- GLOABALS ------------
 const defaultParams: JSONParams = {
   translate: {
     yCoord: 0,
@@ -18,34 +19,112 @@ const defaultParams: JSONParams = {
   }
 }
 
+const allWordsElements = {
+  greenElements: {},
+  yellowAndBlueElements: {
+    blueElements: {},
+    yellowElements: {}
+  },
+};
+
+const toHide = [];
+
+const wordVariableMap = {};
+
+const addVarRules = (scene360, words: string[]) => {
+  // this function adds all the rules to the scene
+  const sceneF = r.scene(scene360);
+
+  words.forEach((word: string): void => {
+    const variable = wordVariableMap[word.toLowerCase()];
+    // creating a new rule for each variable
+    const rule = createRecord(RT.rule);
+    rule.name = `correct_word_${word.toLowerCase()}`
+    const ruleF = r.record(rule);
+    // defining the when event
+    const whenEvent = createRecord(RT.when_event);
+    const whenEventF = r.record(whenEvent);
+    whenEventF.set(rtp.when_event.event, rn.RuleEvent.on_set_eq);
+    whenEventF.set(rtp.when_event.co_id, variable?.id);
+    whenEventF.set(rtp.when_event.co_type, variable?.props?.var_type);
+    whenEventF.set(rtp.when_event.properties, [word.length]);
+
+    // adding the when event to the rule
+    ruleF.addRecord(whenEvent);
+
+    // creating the corresponding then events
+    // 1. hide all yellow and blue elements
+    // 2. show the green elements for this word
+    // 3. award score
+
+    // 1. hide all yellow and blue elements
+    toHide.forEach((json) => {
+      const hideAction = createRecord(RT.then_action);
+      const hideActionF = r.record(hideAction);
+      hideActionF.set(rtp.then_action.action, rn.RuleAction.hide);
+      hideActionF.set(rtp.then_action.co_id, json?.id);
+      hideActionF.set(rtp.then_action.co_type, json?.props.element_type);
+      ruleF.addRecord(hideAction);
+    });
+
+    // hide all the blue elements for this word as well
+    const blueElements = allWordsElements.yellowAndBlueElements.blueElements[word.toUpperCase()];
+    blueElements.forEach((json) => {
+      const hideAction = createRecord(RT.then_action);
+      const hideActionF = r.record(hideAction);
+      hideActionF.set(rtp.then_action.action, rn.RuleAction.hide);
+      hideActionF.set(rtp.then_action.co_id, json?.id);
+      hideActionF.set(rtp.then_action.co_type, json?.props.element_type);
+      ruleF.addRecord(hideAction);
+    })
+
+    // 2. show the green elements for this word
+    console.log("allWordsElements in addVarRules", allWordsElements);
+    console.log('word: ', word);
+    const greenElements = allWordsElements.greenElements[word.toUpperCase()];
+    console.log('greenElements', greenElements);
+    greenElements.forEach((json) => {
+      // const json = greenElements[letter];
+      const showAction = createRecord(RT.then_action);
+      const showActionF = r.record(showAction);
+      showActionF.set(rtp.then_action.action, rn.RuleAction.show);
+      showActionF.set(rtp.then_action.co_id, json?.id);
+      showActionF.set(rtp.then_action.co_type, json?.props.element_type);
+      ruleF.addRecord(showAction);
+    })
+
+    // 3. award score
+    // const thenEvent = createRecord(RT.then_action);
+    // const thenEventF = r.record(thenEvent);
+    // thenEventF.set(rtp.then_action.action, rn.RuleAction.award_score);
+    // thenEventF.set(rtp.then_action.co_id, scoreVar?.id);
+    // thenEventF.set(rtp.then_action.co_type, vn.PredefinedVariableName.score);
+    // thenEventF.set(rtp.then_action.properties, [10]);
+    // ruleF.addRecord(thenEvent);
+
+    // adding this rule to scene
+    sceneF.addRecord(rule);
+  })
+}
+
+
+
 
 const ifPartOfCorrectWord = (wordMap: { [key: string]: any }, rowIdx: number, colIdx: number): { isPresent: boolean, word: string } => {
-  // let isPresent = false;
-  // Object.keys(wordMap).forEach((word: string): void => {
-  //   if (wordMap[word]['idxs'].includes([rowIdx, colIdx])) {
-  //     isPresent = true;
-  //     return;
-  //   }
-  // });
-
   const words = Object.keys(wordMap);
   for (let i = 0; i < words.length; i++) {
-    // if (wordMap[words[i]]['idxs'].includes([rowIdx, colIdx])) return true;
     const idxs = wordMap[words[i]]['idxs'];
     for (let j = 0; j < idxs.length; j++) {
       if (idxs[j][0] === rowIdx && idxs[j][1] === colIdx) return { isPresent: true, word: words[i] };
     }
   }
 
-
-  // console.log('isPresent: ', isPresent);
-
   return { isPresent: false, word: "" };
 }
 
 
-
-const createOverlappingElements = (scene360: RecordNode<RT.scene>, projectF: ProjectFactory, coordinates: JSONParams, letter: string, isCorrectWord = false, groupElementJSON = null, correctWordVariable = null) => {
+const createOverlappingElements = (scene360: RecordNode<RT.scene>, projectF: ProjectFactory, coordinates: JSONParams, letter: string,
+  word: string, isCorrectWord = false, groupElementJSON = null, correctWordVariable = null) => {
 
   const { xCoord, yCoord, zCoord } = coordinates.translate;
   const { width, height } = coordinates.dimensions;
@@ -71,6 +150,18 @@ const createOverlappingElements = (scene360: RecordNode<RT.scene>, projectF: Pro
       groupElementId: groupElement.id
     });
 
+    // adding these to global map
+    if (!allWordsElements.yellowAndBlueElements.yellowElements[word]) {
+      allWordsElements.yellowAndBlueElements.yellowElements[word] = [];
+    }
+    allWordsElements.yellowAndBlueElements.yellowElements[word].push(yellowElementJSON);
+    if (!allWordsElements.yellowAndBlueElements.blueElements[word]) {
+      allWordsElements.yellowAndBlueElements.blueElements[word] = [];
+    }
+    allWordsElements.yellowAndBlueElements.blueElements[word].push(elementJSON);
+
+    toHide.push(yellowElementJSON);
+
     let greenElementJSON = null;
     if (isCorrectWord) {
       greenElementJSON = projectF.addElementOfTypeToScene({
@@ -78,7 +169,16 @@ const createOverlappingElements = (scene360: RecordNode<RT.scene>, projectF: Pro
         elementType: en.ElementType.text,
         groupElementId: groupElement.id
       });
+
+      if (!allWordsElements.greenElements[word]) {
+        allWordsElements.greenElements[word] = [];
+      }
+      allWordsElements.greenElements[word].push(greenElementJSON);
     }
+
+    console.log('tohIDE: ', toHide);
+    console.log('allWordsElements: ', allWordsElements);
+
 
     // const elementJSON = sceneF. (RT.element);
 
@@ -86,6 +186,7 @@ const createOverlappingElements = (scene360: RecordNode<RT.scene>, projectF: Pro
       // element factory
       // const xPosn = (idx > 0 ? (xCoord += horizontalSpacing + width) : xCoord);
       const yellowF = r.element(yellowElementJSON);
+      yellowElementJSON.name = `yellow_${word}_${letter}`;
       yellowF.set(rtp.element.text, letter);
       yellowF.set(rtp.element.wh, [width, height]);
       yellowF.set(rtp.element.placer_3d, [
@@ -102,7 +203,7 @@ const createOverlappingElements = (scene360: RecordNode<RT.scene>, projectF: Pro
       yellowF.set(rtp.element.border_width, 0.1);
       yellowF.set(rtp.element.hidden, true);
       const elementF = r.element(elementJSON);
-
+      elementJSON.name = `blue_${word}_${letter}`;
       elementF.set(rtp.element.text, letter);
       elementF.set(rtp.element.wh, [width, height]);
       elementF.set(rtp.element.placer_3d, [
@@ -120,6 +221,7 @@ const createOverlappingElements = (scene360: RecordNode<RT.scene>, projectF: Pro
 
       // let greenF = null
       if (isCorrectWord && greenElementJSON) {
+        greenElementJSON.name = `green_${word}_${letter}`;
         const greenF = r.element(greenElementJSON);
         greenF.set(rtp.element.text, letter);
         greenF.set(rtp.element.wh, [width, height]);
@@ -150,138 +252,62 @@ const createOverlappingElements = (scene360: RecordNode<RT.scene>, projectF: Pro
       whenEventF.set(rtp.when_event.co_type, elementJSON?.props.element_type);
 
       // then blue should hide at 0 sec
-      const thenAction1 = createRecord(RT.then_action);
-      const thenAction1F = r.record(thenAction1);
-      thenAction1F.set(rtp.then_action.action, rn.RuleAction.hide);
-      thenAction1F.set(rtp.then_action.co_id, elementJSON?.id);
-      thenAction1F.set(rtp.then_action.co_type, elementJSON?.props.element_type);
+      // const thenAction1 = createRecord(RT.then_action);
+      // const thenAction1F = r.record(thenAction1);
+      // thenAction1F.set(rtp.then_action.action, rn.RuleAction.hide);
+      // thenAction1F.set(rtp.then_action.co_id, elementJSON?.id);
+      // thenAction1F.set(rtp.then_action.co_type, elementJSON?.props.element_type);
 
       // then yellow should appear at 0 sec
       let thenAction2 = null;
       let thenAction3 = null;
       if (greenElementJSON !== null) {
-        console.log('greenElementJSOn: ', greenElementJSON);
-        thenAction2 = createRecord(RT.then_action);
-        const thenAction2F = r.record(thenAction2);
-        thenAction2F.set(rtp.then_action.action, rn.RuleAction.show);
-        thenAction2F.set(rtp.then_action.co_id, greenElementJSON?.id);
-        thenAction2F.set(rtp.then_action.co_type, greenElementJSON?.props.element_type);
-
-        // then yellow should hide at 1 sec
-        thenAction3 = createRecord(RT.then_action);
-        const thenAction3F = r.record(thenAction3);
-        thenAction3F.set(rtp.then_action.action, rn.RuleAction.hide);
-        thenAction3F.set(rtp.then_action.co_id, greenElementJSON?.id);
-        thenAction3F.set(rtp.then_action.co_type, greenElementJSON?.props.element_type);
-        thenAction3F.set(rtp.then_action.delay, 4.0);
-
         // variable setting then action
         const varThenAction = createRecord(RT.then_action);
         const varThenActionF = r.record(varThenAction);
         varThenActionF.set(rtp.then_action.action, rn.RuleAction.add_number);
         varThenActionF.set(rtp.then_action.properties, [1]);
-        // varThenAction.set(rtp.then_action.properties, 1);
         console.log('co_id: ', correctWordVariable?.id);
         console.log('co_type: ', correctWordVariable?.type);
         varThenActionF.set(rtp.then_action.co_id, correctWordVariable?.id);
         varThenActionF.set(rtp.then_action.co_type, correctWordVariable?.props?.var_type);
         ruleF.addRecord(varThenAction);
-      } else {
-
-
-        thenAction2 = createRecord(RT.then_action);
-        const thenAction2F = r.record(thenAction2);
-        thenAction2F.set(rtp.then_action.action, rn.RuleAction.show);
-        thenAction2F.set(rtp.then_action.co_id, yellowElementJSON?.id);
-        thenAction2F.set(rtp.then_action.co_type, yellowElementJSON?.props.element_type);
-
-        // then yellow should hide at 1 sec
-        thenAction3 = createRecord(RT.then_action);
-        const thenAction3F = r.record(thenAction3);
-        thenAction3F.set(rtp.then_action.action, rn.RuleAction.hide);
-        thenAction3F.set(rtp.then_action.co_id, yellowElementJSON?.id);
-        thenAction3F.set(rtp.then_action.co_type, yellowElementJSON?.props.element_type);
-        thenAction3F.set(rtp.then_action.delay, 4.0);
-
       }
+
+
+      thenAction2 = createRecord(RT.then_action);
+      const thenAction2F = r.record(thenAction2);
+      thenAction2F.set(rtp.then_action.action, rn.RuleAction.show);
+      thenAction2F.set(rtp.then_action.co_id, yellowElementJSON?.id);
+      thenAction2F.set(rtp.then_action.co_type, yellowElementJSON?.props.element_type);
+
+      // then yellow should hide at 1 sec
+      thenAction3 = createRecord(RT.then_action);
+      const thenAction3F = r.record(thenAction3);
+      thenAction3F.set(rtp.then_action.action, rn.RuleAction.hide);
+      thenAction3F.set(rtp.then_action.co_id, yellowElementJSON?.id);
+      thenAction3F.set(rtp.then_action.co_type, yellowElementJSON?.props.element_type);
+      thenAction3F.set(rtp.then_action.delay, 3.0);
+
       // then blue should appear at 1 sec
-      const thenAction4 = createRecord(RT.then_action);
-      const thenAction4F = r.record(thenAction4);
-      thenAction4F.set(rtp.then_action.action, rn.RuleAction.show);
-      thenAction4F.set(rtp.then_action.co_id, elementJSON?.id);
-      thenAction4F.set(rtp.then_action.co_type, elementJSON?.props.element_type);
-      thenAction4F.set(rtp.then_action.delay, 4.0);
+      // const thenAction4 = createRecord(RT.then_action);
+      // const thenAction4F = r.record(thenAction4);
+      // thenAction4F.set(rtp.then_action.action, rn.RuleAction.show);
+      // thenAction4F.set(rtp.then_action.co_id, elementJSON?.id);
+      // thenAction4F.set(rtp.then_action.co_type, elementJSON?.props.element_type);
+      // thenAction4F.set(rtp.then_action.delay, 1.0);
 
       ruleF.addRecord(whenEvent);
-      ruleF.addRecord(thenAction1);
+      // ruleF.addRecord(thenAction1);
       ruleF.addRecord(thenAction2);
       ruleF.addRecord(thenAction3);
-      ruleF.addRecord(thenAction4);
+      // ruleF.addRecord(thenAction4);
 
-      /*      if (isCorrectWord && greenElementJSON && greenF) {
-              // new when event
-              const whenEvent2 = createRecord(RT.when_event);
-              const whenEvent2F = r.record(whenEvent2);
-              whenEvent2F.set(rtp.when_event.event, rn.RuleEvent.on_click);
-              whenEvent2F.set(rtp.when_event.co_id, yellowElementJSON?.id);
-              whenEvent2F.set(rtp.when_event.co_type, yellowElementJSON?.props.element_type);
-      
-              // then yellow should hide at 0 sec
-              const thenAction5 = createRecord(RT.then_action);
-              const thenAction5F = r.record(thenAction5);
-              thenAction5F.set(rtp.then_action.action, rn.RuleAction.hide);
-              thenAction5F.set(rtp.then_action.co_id, yellowElementJSON?.id);
-              thenAction5F.set(rtp.then_action.co_type, yellowElementJSON?.props.element_type);
-      
-              // then green should appear at 0 sec
-              const thenAction6 = createRecord(RT.then_action);
-              const thenAction6F = r.record(thenAction6);
-              thenAction6F.set(rtp.then_action.action, rn.RuleAction.show);
-              thenAction6F.set(rtp.then_action.co_id, greenElementJSON?.id);
-              thenAction6F.set(rtp.then_action.co_type, greenElementJSON?.props.element_type);
-      
-              // then green should hide at 1 sec
-              const thenAction7 = createRecord(RT.then_action);
-              const thenAction7F = r.record(thenAction7);
-              thenAction7F.set(rtp.then_action.action, rn.RuleAction.hide);
-              thenAction7F.set(rtp.then_action.co_id, greenElementJSON?.id);
-              thenAction7F.set(rtp.then_action.co_type, greenElementJSON?.props.element_type);
-              thenAction7F.set(rtp.then_action.delay, 1.0);
-      
-              // then yellow should appear at 1 sec
-              const thenAction8 = createRecord(RT.then_action);
-              const thenAction8F = r.record(thenAction8);
-              thenAction8F.set(rtp.then_action.action, rn.RuleAction.show);
-              thenAction8F.set(rtp.then_action.co_id, yellowElementJSON?.id);
-              thenAction8F.set(rtp.then_action.co_type, yellowElementJSON?.props.element_type);
-              thenAction8F.set(rtp.then_action.delay, 1.0);
-      
-              ruleF.addRecord(whenEvent2);
-              ruleF.addRecord(thenAction5);
-              ruleF.addRecord(thenAction6);
-              ruleF.addRecord(thenAction7);
-              ruleF.addRecord(thenAction8);
-      
-            }*/
-
-      // projectF.addRecord(rule);
       const sceneF = r.scene(scene360);
       sceneF.addRecord(rule);
     }
   }
 }
-
-
-// const createVariable = () => {
-//   const variableMango = createRecord(RT.variable);
-//   const variableMangoF = r.record(variableMango);
-//   variableMangoF.set(rtp.variable.var_default, 0);
-//   variableMangoF.set(rtp.variable.var_type, vn.VariableType.number);
-//   variableMangoF.set(rtp.variable.var_category, vn.VarCategory.user_defined);
-//   variableMangoF.set(rtp.variable.var_track, true);
-
-//   return variableMango;
-// }
 
 export const gen = (words: string[], gridSize: number, params: JSONParams = defaultParams) => {
   const { grid, wordMap } = createWordSearch(words.map((word: string) => word.toUpperCase()), gridSize);
@@ -295,26 +321,11 @@ export const gen = (words: string[], gridSize: number, params: JSONParams = defa
   // 4 factories: RecordFactory (Base) -> ProjectFactory -> SceneFactory -> ElementFactory
   const projectF = r.project(json);
 
-
-
-  // console.log('wordVariableMap: ', wordVariableMap);
-
   const initialSceneId = projectF.getInitialSceneId();
   const scene360 = projectF.addBlankRecord(RT.scene);
   projectF.deleteRecord(RT.scene, initialSceneId);
 
-  //create global variable score
-  const scoreVar = createRecord(RT.variable);
-  const scoreVarF = r.record(scoreVar);
-  scoreVarF.set(rtp.variable.var_default, 0);
-  scoreVarF.set(rtp.variable.var_type, vn.VariableType.number);
-  scoreVarF.set(rtp.variable.var_category, vn.VarCategory.predefined);
-  scoreVarF.set(rtp.variable.var_track, true);
-  scoreVar.name = "Score"; // set(rtp.variable.var_name, word);
-  projectF.addRecord(scoreVar);
 
-  // create variables for the correct words
-  const wordVariableMap = {};
   words.forEach((word: string) => {
     const rule = createRecord(RT.rule);
     const ruleF = r.record(rule);
@@ -329,30 +340,8 @@ export const gen = (words: string[], gridSize: number, params: JSONParams = defa
     variable.name = word; // set(rtp.variable.var_name, word);
     projectF.addRecord(variable);
     wordVariableMap[word] = variable;
-
-
-    // creating corresponding when event and then event
-    const whenEvent = createRecord(RT.when_event);
-    const whenEventF = r.record(whenEvent);
-    whenEventF.set(rtp.when_event.event, rn.RuleEvent.on_set_eq);
-    whenEventF.set(rtp.when_event.co_id, variable?.id);
-    whenEventF.set(rtp.when_event.co_type, variable?.props?.var_type);
-    whenEventF.set(rtp.when_event.properties, [word.length]);
-
-    // creating corresponding then events
-    const thenEvent = createRecord(RT.then_action);
-    const thenEventF = r.record(thenEvent);
-    thenEventF.set(rtp.then_action.action, rn.RuleAction.award_score);
-    thenEventF.set(rtp.then_action.co_id, scoreVar?.id);
-    thenEventF.set(rtp.then_action.co_type, vn.PredefinedVariableName.score);
-    thenEventF.set(rtp.then_action.properties, [10]);
-
-    ruleF.addRecord(whenEvent);
-    ruleF.addRecord(thenEvent);
-
-    const sceneF = r.scene(scene360);
-    sceneF.addRecord(rule);
   });
+
   // json for the scene
   // const scene = projectF.getRecord(RT.scene, initialSceneId);
 
@@ -397,7 +386,7 @@ export const gen = (words: string[], gridSize: number, params: JSONParams = defa
             dimensions: {
               width, height
             }
-          }, letter, true, wordMap[word]['groupeElementJSON'], wordVariableMap[word.toLowerCase()]);
+          }, letter, word, true, wordMap[word]['groupeElementJSON'], wordVariableMap[word.toLowerCase()]);
         } else {
           createOverlappingElements(scene360, projectF, {
             translate: {
@@ -408,11 +397,13 @@ export const gen = (words: string[], gridSize: number, params: JSONParams = defa
             dimensions: {
               width, height
             }
-          }, letter);
+          }, letter, word);
         }
       })
       yCoord -= (verticalSpacing + height);
     });
+
+    addVarRules(scene360, words);
 
     // printing what json looks like
     console.log(json);
@@ -420,6 +411,7 @@ export const gen = (words: string[], gridSize: number, params: JSONParams = defa
     // sending it to my sample project
     updateProject(json);
   }
+
 }
 
 const updateProject = (json: any) => {
