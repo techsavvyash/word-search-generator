@@ -1,6 +1,5 @@
 import { r, rtp, RT, migrations, en, createRecord, rn, RecordNode, vn } from '@gmetrixr/rjson'
 import axios from 'axios';
-
 import { createWordSearch } from './wordSearch';
 import { JSONParams } from './types/jsonParams';
 import { ProjectFactory } from '@gmetrixr/rjson/lib/cjs/r/recordFactories';
@@ -28,7 +27,6 @@ const allWordsElements = {
 };
 
 const toHide = [];
-
 const wordVariableMap = {};
 
 const addVarRules = (scene360, words: string[]) => {
@@ -102,12 +100,37 @@ const addVarRules = (scene360, words: string[]) => {
     // thenEventF.set(rtp.then_action.properties, [10]);
     // ruleF.addRecord(thenEvent);
 
+    // reset the variable for this word if clicked on blue of some other word
+
     // adding this rule to scene
     sceneF.addRecord(rule);
   })
+
+  // reset the correct variables in case the number is being rest 
+  const nonCorrectBlueElements = allWordsElements.yellowAndBlueElements.blueElements[""];
+  nonCorrectBlueElements.forEach((json) => {
+    const rule = createRecord(RT.rule);
+    rule.name = `reset_vars_${json?.name}`;
+    const ruleF = r.record(rule);
+
+    const whenEvent = createRecord(RT.when_event);
+    const whenEventF = r.record(whenEvent);
+    whenEventF.set(rtp.when_event.event, rn.RuleEvent.on_click);
+    whenEventF.set(rtp.when_event.co_id, json?.id);
+    whenEventF.set(rtp.when_event.co_type, json?.props.element_type);
+    ruleF.addRecord(whenEvent);
+
+    const thenEvent = createRecord(RT.then_action);
+    const thenEventF = r.record(thenEvent);
+    thenEventF.set(rtp.then_action.action, rn.RuleAction.set_to_number);
+    thenEventF.set(rtp.then_action.co_id, json?.props?.var_id);
+    thenEventF.set(rtp.then_action.co_type, json?.props?.var_type);
+    thenEventF.set(rtp.then_action.properties, [0]);
+    ruleF.addRecord(thenEvent);
+
+    sceneF.addRecord(rule);
+  });
 }
-
-
 
 
 const ifPartOfCorrectWord = (wordMap: { [key: string]: any }, rowIdx: number, colIdx: number): { isPresent: boolean, word: string } => {
@@ -274,7 +297,6 @@ const createOverlappingElements = (scene360: RecordNode<RT.scene>, projectF: Pro
         ruleF.addRecord(varThenAction);
       }
 
-
       thenAction2 = createRecord(RT.then_action);
       const thenAction2F = r.record(thenAction2);
       thenAction2F.set(rtp.then_action.action, rn.RuleAction.show);
@@ -289,20 +311,23 @@ const createOverlappingElements = (scene360: RecordNode<RT.scene>, projectF: Pro
       thenAction3F.set(rtp.then_action.co_type, yellowElementJSON?.props.element_type);
       thenAction3F.set(rtp.then_action.delay, 3.0);
 
-      // then blue should appear at 1 sec
-      // const thenAction4 = createRecord(RT.then_action);
-      // const thenAction4F = r.record(thenAction4);
-      // thenAction4F.set(rtp.then_action.action, rn.RuleAction.show);
-      // thenAction4F.set(rtp.then_action.co_id, elementJSON?.id);
-      // thenAction4F.set(rtp.then_action.co_type, elementJSON?.props.element_type);
-      // thenAction4F.set(rtp.then_action.delay, 1.0);
 
       ruleF.addRecord(whenEvent);
-      // ruleF.addRecord(thenAction1);
       ruleF.addRecord(thenAction2);
       ruleF.addRecord(thenAction3);
-      // ruleF.addRecord(thenAction4);
-
+      // then actions for resetting the correct variable values
+      if (!isCorrectWord) {
+        Object.keys(wordVariableMap).forEach((word: string) => {
+          const wordVar = wordVariableMap[word];
+          const thenAction4 = createRecord(RT.then_action);
+          const thenAction4F = r.record(thenAction4);
+          thenAction4F.set(rtp.then_action.action, rn.RuleAction.set_to_number);
+          thenAction4F.set(rtp.then_action.properties, [0]);
+          thenAction4F.set(rtp.then_action.co_id, wordVar?.id);
+          thenAction4F.set(rtp.then_action.co_type, wordVar?.props?.var_type);
+          ruleF.addRecord(thenAction4);
+        })
+      }
       const sceneF = r.scene(scene360);
       sceneF.addRecord(rule);
     }
