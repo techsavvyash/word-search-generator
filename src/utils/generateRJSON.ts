@@ -33,6 +33,29 @@ const addVarRules = (scene360, words: string[]) => {
   // this function adds all the rules to the scene
   const sceneF = r.scene(scene360);
 
+  // add variable increment rules 
+  // words.forEach((word: string): void => {
+  //   const rule = createRecord(RT.rule);
+  //   rule.name = `increment_var_${word.toLowerCase()}`;
+  //   const ruleF = r.record(rule);
+
+  //   const blueVar = allWordsElements.yellowAndBlueElements.blueElements[word.toUpperCase()];
+  //   const whenEvent1 = createRecord(RT.when_event);
+  //   const whenEvent1F = r.record(whenEvent1);
+  //   whenEvent1F.set(rtp.when_event.event, rn.RuleEvent.on_click);
+  //   whenEvent1F.set(rtp.when_event.co_id, blueVar?.id);
+  //   whenEvent1F.set(rtp.when_event.co_type, blueVar?.props?.element_type);
+  //   ruleF.addRecord(whenEvent1);
+
+  //   const flagVar = wordVariableMap[word.toLowerCase()].;
+  //   const whenEvent2 = createRecord(RT.when_event);
+  //   const whenEvent2F = r.record(whenEvent2);
+
+
+  // });
+
+  console.log('allWordsElements: ', allWordsElements)
+
   words.forEach((word: string): void => {
     const variable = wordVariableMap[word.toLowerCase()];
     // creating a new rule for each variable
@@ -318,7 +341,8 @@ const createOverlappingElements = (scene360: RecordNode<RT.scene>, projectF: Pro
       // then actions for resetting the correct variable values
       if (!isCorrectWord) {
         Object.keys(wordVariableMap).forEach((word: string) => {
-          const wordVar = wordVariableMap[word];
+          const wordVar = wordVariableMap[word].variable;
+          // action to reset the variable
           const thenAction4 = createRecord(RT.then_action);
           const thenAction4F = r.record(thenAction4);
           thenAction4F.set(rtp.then_action.action, rn.RuleAction.set_to_number);
@@ -326,6 +350,18 @@ const createOverlappingElements = (scene360: RecordNode<RT.scene>, projectF: Pro
           thenAction4F.set(rtp.then_action.co_id, wordVar?.id);
           thenAction4F.set(rtp.then_action.co_type, wordVar?.props?.var_type);
           ruleF.addRecord(thenAction4);
+
+          // action to reset flags
+          Object.keys(wordVariableMap[word].flags).forEach((letter: string) => {
+            const flagVar = wordVariableMap[word].flags[letter];
+            const thenAction5 = createRecord(RT.then_action);
+            const thenAction5F = r.record(thenAction5);
+            thenAction5F.set(rtp.then_action.action, rn.RuleAction.set_to_number);
+            thenAction5F.set(rtp.then_action.properties, [0]);
+            thenAction5F.set(rtp.then_action.co_id, flagVar?.id);
+            thenAction5F.set(rtp.then_action.co_type, flagVar?.props?.var_type);
+            ruleF.addRecord(thenAction5);
+          })
         })
       }
       const sceneF = r.scene(scene360);
@@ -353,7 +389,6 @@ export const gen = (words: string[], gridSize: number, params: JSONParams = defa
 
   words.forEach((word: string) => {
     const rule = createRecord(RT.rule);
-    const ruleF = r.record(rule);
 
     // creating variable
     const variable = createRecord(RT.variable);
@@ -364,7 +399,20 @@ export const gen = (words: string[], gridSize: number, params: JSONParams = defa
     variableF.set(rtp.variable.var_track, true);
     variable.name = word; // set(rtp.variable.var_name, word);
     projectF.addRecord(variable);
-    wordVariableMap[word] = variable;
+    wordVariableMap[word]["variable"] = variable;
+
+    // creating flag variables
+    word.split("").forEach((letter: string) => {
+      const flagVariable = createRecord(RT.variable);
+      const flagVariableF = r.record(flagVariable);
+      flagVariableF.set(rtp.variable.var_default, 0);
+      flagVariableF.set(rtp.variable.var_type, vn.VariableType.number);
+      flagVariableF.set(rtp.variable.var_category, vn.VarCategory.user_defined);
+      flagVariableF.set(rtp.variable.var_track, true);
+      flagVariable.name = `flag_${word}_${letter}`;
+      projectF.addRecord(flagVariable);
+      wordVariableMap[word]["flags"][letter] = flagVariable;
+    });
   });
 
   // json for the scene
@@ -435,6 +483,8 @@ export const gen = (words: string[], gridSize: number, params: JSONParams = defa
 
     // sending it to my sample project
     updateProject(json);
+    const output = projectF.copyToClipboardObject([scene360.id]);
+    console.log('output: ', output);
   }
 
 }
