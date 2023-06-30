@@ -4,7 +4,7 @@ const Home = () => {
   return (
     <div>
       <div>
-        <h1> Welcome to the RJSON Game Generator </h1>
+        <h3> Welcome to the RJSON Game Generator </h3>
         <div>
           <Link to="/wordsearch"> Word Search </Link>
         </div>

@@ -1,11 +1,21 @@
 import { r, rtp, RT, migrations, en, createRecord, rn, RecordNode, vn } from '@gmetrixr/rjson'
 import axios from 'axios';
 import { createWordSearch } from './wordSearch';
-import { JSONParams } from './types/jsonParams';
+// import { JSONParams } from './types/jsonParams';
 import { ProjectFactory } from '@gmetrixr/rjson/lib/cjs/r/recordFactories';
+import { WordSearchParams } from '../types';
 
 // --------- GLOABALS ------------
-const defaultParams: JSONParams = {
+const defaultParams: WordSearchParams = {
+  colors: {
+    base: "#0C4494",
+    intermediate: "#F8E71C",
+    top: "#AFE1AF",
+    text: ""
+  },
+  font: {
+    fontSize: 1
+  },
   translate: {
     yCoord: 0,
     zCoord: -30,
@@ -33,7 +43,7 @@ const addVarRules = (scene360, words: string[]) => {
   // this function adds all the rules to the scene
   const sceneF = r.scene(scene360);
 
-  // add variable increment rules 
+  // // add variable increment rules 
   // words.forEach((word: string): void => {
   //   const rule = createRecord(RT.rule);
   //   rule.name = `increment_var_${word.toLowerCase()}`;
@@ -47,7 +57,7 @@ const addVarRules = (scene360, words: string[]) => {
   //   whenEvent1F.set(rtp.when_event.co_type, blueVar?.props?.element_type);
   //   ruleF.addRecord(whenEvent1);
 
-  //   const flagVar = wordVariableMap[word.toLowerCase()].;
+  //   const flagVar = wordVariableMap[word.toLowerCase()];
   //   const whenEvent2 = createRecord(RT.when_event);
   //   const whenEvent2F = r.record(whenEvent2);
 
@@ -169,11 +179,13 @@ const ifPartOfCorrectWord = (wordMap: { [key: string]: any }, rowIdx: number, co
 }
 
 
-const createOverlappingElements = (scene360: RecordNode<RT.scene>, projectF: ProjectFactory, coordinates: JSONParams, letter: string,
+const createOverlappingElements = (scene360: RecordNode<RT.scene>, projectF: ProjectFactory, coordinates: WordSearchParams, letter: string,
   word: string, isCorrectWord = false, groupElementJSON = null, correctWordVariable = null) => {
 
   const { xCoord, yCoord, zCoord } = coordinates.translate;
   const { width, height } = coordinates.dimensions;
+  const { base, intermediate, top } = coordinates.colors;
+  const fontSize = coordinates.font.fontSize;
 
   // take the pre created groupElementJSON in case the letter belongs to a correct word
   const groupElement = isCorrectWord ? groupElementJSON : projectF.addElementOfTypeToScene({
@@ -240,9 +252,9 @@ const createOverlappingElements = (scene360: RecordNode<RT.scene>, projectF: Pro
         yCoord,
         zCoord,
         0, 0, 0, 1, 1, 1]);
-      yellowF.set(rtp.element.font_size, 1.0);
+      yellowF.set(rtp.element.font_size, (fontSize ?? 1.0));
       // yellowF.set(rtp.element.radius, 0.7);
-      yellowF.set(rtp.element.background_color, '#F8E71C');
+      yellowF.set(rtp.element.background_color, (intermediate ?? '#F8E71C'));
       // yellowF.set(rtp.element.font_weight, 'bold');
       yellowF.set(rtp.element.border_color, '#000000');
       yellowF.set(rtp.element.border_radius, 0.7);
@@ -257,9 +269,9 @@ const createOverlappingElements = (scene360: RecordNode<RT.scene>, projectF: Pro
         yCoord,
         zCoord,
         0, 0, 0, 1, 1, 1]);
-      elementF.set(rtp.element.font_size, 1.0);
+      elementF.set(rtp.element.font_size, (fontSize ?? 1.0));
       // elementF.set(rtp.element.radius, 0.7);
-      elementF.set(rtp.element.background_color, '#0C4494');
+      elementF.set(rtp.element.background_color, (base ?? '#0C4494'));
       // elementF.set(rtp.element.font_weight, 'bold');
       elementF.set(rtp.element.border_color, '#000000');
       elementF.set(rtp.element.border_radius, 0.7);
@@ -278,7 +290,7 @@ const createOverlappingElements = (scene360: RecordNode<RT.scene>, projectF: Pro
           0, 0, 0, 1, 1, 1]);
         greenF.set(rtp.element.font_size, 1.0);
         // greenF.set(rtp.element.radius, 0.7);
-        greenF.set(rtp.element.background_color, '#AFE1AF');
+        greenF.set(rtp.element.background_color, (top ?? '#AFE1AF'));
         // greenF.set(rtp.element.font_weight, 'bold');
         greenF.set(rtp.element.border_color, '#000000');
         greenF.set(rtp.element.border_radius, 0.7);
@@ -341,7 +353,8 @@ const createOverlappingElements = (scene360: RecordNode<RT.scene>, projectF: Pro
       // then actions for resetting the correct variable values
       if (!isCorrectWord) {
         Object.keys(wordVariableMap).forEach((word: string) => {
-          const wordVar = wordVariableMap[word].variable;
+          const wordVar = wordVariableMap[word];
+          // const wordVar = wordVariableMap[word].variable;
           // action to reset the variable
           const thenAction4 = createRecord(RT.then_action);
           const thenAction4F = r.record(thenAction4);
@@ -352,16 +365,16 @@ const createOverlappingElements = (scene360: RecordNode<RT.scene>, projectF: Pro
           ruleF.addRecord(thenAction4);
 
           // action to reset flags
-          Object.keys(wordVariableMap[word].flags).forEach((letter: string) => {
-            const flagVar = wordVariableMap[word].flags[letter];
-            const thenAction5 = createRecord(RT.then_action);
-            const thenAction5F = r.record(thenAction5);
-            thenAction5F.set(rtp.then_action.action, rn.RuleAction.set_to_number);
-            thenAction5F.set(rtp.then_action.properties, [0]);
-            thenAction5F.set(rtp.then_action.co_id, flagVar?.id);
-            thenAction5F.set(rtp.then_action.co_type, flagVar?.props?.var_type);
-            ruleF.addRecord(thenAction5);
-          })
+          // Object.keys(wordVariableMap[word].flags).forEach((letter: string) => {
+          //   const flagVar = wordVariableMap[word].flags[letter];
+          //   const thenAction5 = createRecord(RT.then_action);
+          //   const thenAction5F = r.record(thenAction5);
+          //   thenAction5F.set(rtp.then_action.action, rn.RuleAction.set_to_number);
+          //   thenAction5F.set(rtp.then_action.properties, [0]);
+          //   thenAction5F.set(rtp.then_action.co_id, flagVar?.id);
+          //   thenAction5F.set(rtp.then_action.co_type, flagVar?.props?.var_type);
+          //   ruleF.addRecord(thenAction5);
+          // })
         })
       }
       const sceneF = r.scene(scene360);
@@ -370,7 +383,7 @@ const createOverlappingElements = (scene360: RecordNode<RT.scene>, projectF: Pro
   }
 }
 
-export const gen = (words: string[], gridSize: number, params: JSONParams = defaultParams) => {
+export const gen = (words: string[], gridSize: number, params: WordSearchParams = defaultParams) => {
   const { grid, wordMap } = createWordSearch(words.map((word: string) => word.toUpperCase()), gridSize);
   // printing the grid
   for (const row of grid) {
@@ -399,20 +412,23 @@ export const gen = (words: string[], gridSize: number, params: JSONParams = defa
     variableF.set(rtp.variable.var_track, true);
     variable.name = word; // set(rtp.variable.var_name, word);
     projectF.addRecord(variable);
-    wordVariableMap[word]["variable"] = variable;
+    wordVariableMap[word] = variable;
+    // if (!wordVariableMap[word]) wordVariableMap[word] = {};
+    // wordVariableMap[word]["variable"] = variable;
 
-    // creating flag variables
-    word.split("").forEach((letter: string) => {
-      const flagVariable = createRecord(RT.variable);
-      const flagVariableF = r.record(flagVariable);
-      flagVariableF.set(rtp.variable.var_default, 0);
-      flagVariableF.set(rtp.variable.var_type, vn.VariableType.number);
-      flagVariableF.set(rtp.variable.var_category, vn.VarCategory.user_defined);
-      flagVariableF.set(rtp.variable.var_track, true);
-      flagVariable.name = `flag_${word}_${letter}`;
-      projectF.addRecord(flagVariable);
-      wordVariableMap[word]["flags"][letter] = flagVariable;
-    });
+    // // creating flag variables
+    // word.split("").forEach((letter: string) => {
+    //   const flagVariable = createRecord(RT.variable);
+    //   const flagVariableF = r.record(flagVariable);
+    //   flagVariableF.set(rtp.variable.var_default, 0);
+    //   flagVariableF.set(rtp.variable.var_type, vn.VariableType.number);
+    //   flagVariableF.set(rtp.variable.var_category, vn.VarCategory.user_defined);
+    //   flagVariableF.set(rtp.variable.var_track, true);
+    //   flagVariable.name = `flag_${word}_${letter}`;
+    //   projectF.addRecord(flagVariable);
+    //   if (!wordVariableMap[word]["flags"]) wordVariableMap[word]["flags"] = {};
+    //   wordVariableMap[word]["flags"][letter] = flagVariable;
+    // });
   });
 
   // json for the scene
@@ -458,7 +474,10 @@ export const gen = (words: string[], gridSize: number, params: JSONParams = defa
             },
             dimensions: {
               width, height
-            }
+            },
+            colors: params.colors,
+            font: params.font
+
           }, letter, word, true, wordMap[word]['groupeElementJSON'], wordVariableMap[word.toLowerCase()]);
         } else {
           createOverlappingElements(scene360, projectF, {
@@ -469,7 +488,9 @@ export const gen = (words: string[], gridSize: number, params: JSONParams = defa
             },
             dimensions: {
               width, height
-            }
+            },
+            colors: params.colors,
+            font: params.font
           }, letter, word);
         }
       })
@@ -484,6 +505,7 @@ export const gen = (words: string[], gridSize: number, params: JSONParams = defa
     // sending it to my sample project
     updateProject(json);
     const output = projectF.copyToClipboardObject([scene360.id]);
+    navigator.clipboard.writeText(JSON.stringify(output));
     console.log('output: ', output);
   }
 
