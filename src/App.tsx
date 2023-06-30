@@ -1,43 +1,19 @@
-import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import viteLogo from "/vite.svg";
 import "./App.css";
-import { gen } from "./utils/generateRJSON";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import SquidGames from "./components/SquidGames/SquidGames";
+import WordPuzzle from "./components/WordPuzzle/WordPuzzle";
+import Home from "./components/Home/Home";
 
 function App() {
-  const [words, setWords] = useState<string>("");
-
-  const [gridSize, setGridSize] = useState<number>(10);
-
   return (
     <>
-      <div>
-        <div>
-          <p> Enter the comma separated list of words </p>
-          <input type="text" onChange={(e) => setWords(e.target.value)} />
-        </div>
-        <div>
-          <p> Enter the gridSize </p>
-          <input
-            type="number"
-            onChange={(e) => setGridSize(parseFloat(e.target.value))}
-          />
-        </div>
-        <button
-          style={{ marginTop: "20px" }}
-          onClick={() => {
-            const rjson = gen(
-              words.split(",").map((word) => word.trim()),
-              gridSize
-            );
-            console.log(rjson);
-            alert("RJson has been printed on your console");
-          }}
-        >
-          {" "}
-          Generate RJson
-        </button>
-      </div>
+      <Router>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/wordsearch" element={<WordPuzzle />} />
+          <Route path="/squidgames" element={<SquidGames />} />
+        </Routes>
+      </Router>
     </>
   );
 }

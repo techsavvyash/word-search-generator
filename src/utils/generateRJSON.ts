@@ -429,7 +429,7 @@ export const gen = (words: string[], gridSize: number, params: JSONParams = defa
 
     projectF.addElementOfTypeToScene({ sceneId: scene360.id, elementType: en.ElementType.pano_image });
 
-    // create groups for correct words
+    // create groups for correct words 
     Object.keys(wordMap).forEach((word: string): void => {
       const groupJSON = projectF.addElementOfTypeToScene({
         sceneId: scene360.id,
