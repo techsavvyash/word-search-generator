@@ -4,6 +4,7 @@ import { createWordSearch } from './wordSearch';
 // import { JSONParams } from './types/jsonParams';
 import { ProjectFactory } from '@gmetrixr/rjson/lib/cjs/r/recordFactories';
 import { WordSearchParams } from '../types';
+import { updateProject } from './utils';
 
 // --------- GLOABALS ------------
 const defaultParams: WordSearchParams = {
@@ -503,24 +504,9 @@ export const gen = (words: string[], gridSize: number, params: WordSearchParams 
     console.log(json);
 
     // sending it to my sample project
-    updateProject(json);
+    updateProject(json, params.project.uuid);
     const output = projectF.copyToClipboardObject([scene360.id]);
     navigator.clipboard.writeText(JSON.stringify(output));
     console.log('output: ', output);
   }
-
-}
-
-const updateProject = (json: any) => {
-  axios.post('https://api.gmetri.com/sdk/project/updateJSON', {
-    projUuid: 'e8ffb6c8-2b10-4041-b270-37258cf3ed48',
-    json
-  }, {
-    headers: {
-      Authorization: import.meta.env.VITE_AUTH_HEADER
-    }
-  }).then(res => {
-    console.log(res.data);
-    console.log('updated json');
-  })
 }

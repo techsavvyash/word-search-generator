@@ -8,7 +8,7 @@ const SquidGames = () => {
   const [ques, setQues] = useState<string>("");
   const [correct, setCorrect] = useState<string>("");
   const [incorrect, setIncorrect] = useState<string>("");
-
+  const [uuid, setUUID] = useState<string>("");
   return (
     <>
       <div>
@@ -41,7 +41,7 @@ const SquidGames = () => {
             />
           </div>
           <button
-            onClick={(e) => {
+            onClick={() => {
               const newQuestion = {
                 question: ques,
                 options: {
@@ -57,6 +57,15 @@ const SquidGames = () => {
           </button>
         </div>
         <div>
+          <label> Project uuid: </label>
+          <input
+            type="text"
+            onChange={(e) => {
+              setUUID(e.target.value);
+            }}
+          />
+        </div>
+        <div>
           <div> Added Questions </div>
           <div>
             {questions.map((question, index) => {
@@ -69,7 +78,7 @@ const SquidGames = () => {
         <button
           style={{ marginTop: "20px" }}
           onClick={() => {
-            const rjson = genSquidGames(questions);
+            const rjson = genSquidGames(questions, uuid);
             console.log(rjson);
             alert("RJson has been printed on your console");
           }}

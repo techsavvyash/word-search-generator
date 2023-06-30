@@ -2,8 +2,9 @@ import { r, rtp, RT, migrations, en, createRecord, rn, RecordNode, vn } from '@g
 import axios from 'axios';
 import { ElementType } from '@gmetrixr/rjson/lib/cjs/r/definitions/elements';
 import { QuestionProps } from '../types';
+import { updateProject } from './utils';
 
-export const genSquidGames = async (questins: QuestionProps[]) => {
+export const genSquidGames = async (questins: QuestionProps[], uuid: string) => {
   // initialise scene
   const json = migrations.createNewProject();
   const projectF = r.project(json);
@@ -16,7 +17,8 @@ export const genSquidGames = async (questins: QuestionProps[]) => {
   const questionTextElements = [];
   const questionFlagVariables = [];
 
-  let xCoord = -1, yCoord = 0, zCoord = 2;
+  let xCoord = -1;
+  const yCoord = 0, zCoord = 2;
 
   // generate text elements
   questins.forEach((ques: QuestionProps, idx: number) => {
@@ -248,21 +250,8 @@ export const genSquidGames = async (questins: QuestionProps[]) => {
     }
   }
 
-  updateProject(json);
+  updateProject(json, uuid);
 }
 
 
 
-const updateProject = (json: any) => {
-  axios.post('https://api.gmetri.com/sdk/project/updateJSON', {
-    projUuid: '90e705aa-a201-42b0-ac1a-43268a86e187',
-    json
-  }, {
-    headers: {
-      Authorization: import.meta.env.VITE_AUTH_HEADER
-    }
-  }).then(res => {
-    console.log(res.data);
-    console.log('updated json');
-  })
-}
